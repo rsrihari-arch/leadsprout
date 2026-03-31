@@ -1,8 +1,6 @@
-const { discoverLeads } = require("./leadDiscovery");
 const { filterLeads, enrichSeniority } = require("./leadFilter");
 const { validateLinkedIn } = require("./linkedinValidator");
 const { enrichEmail } = require("./emailGenerator");
-const { findPhone } = require("./phoneFinder");
 const { insertLead } = require("../db");
 const apollo = require("./apolloClient");
 
@@ -51,13 +49,9 @@ async function runPipeline(company, jobId, roles, onProgress, opts = {}) {
     }
   }
 
-  // Step 1b: Fallback to Google scraping (skip for bulk — too slow on corporate networks)
-  if (leads.length === 0 && !opts.bulk) {
-    log(`Discovering leads for "${company}" with roles: ${searchRoles.join(", ")}`);
-    leads = await discoverLeads(company, searchRoles);
-    log(`Found ${leads.length} raw leads`);
-  } else if (leads.length === 0 && opts.bulk) {
-    log(`No Apollo results for "${company}" — skipping (bulk mode)`);
+  // Step 1b: Fallback to Google scraping (disabled — requires Chrome/Puppeteer)
+  if (leads.length === 0) {
+    log(`No Apollo results for "${company}" — Google fallback disabled`);
   }
 
   if (leads.length === 0) {
@@ -94,25 +88,13 @@ async function runPipeline(company, jobId, roles, onProgress, opts = {}) {
   });
   log("Email enrichment complete");
 
-  // Step 6: Phone enrichment (skip for Apollo leads — too slow via scraping)
-  const withPhones = [];
-  if (fromApollo) {
-    log("Skipping phone scraping for Apollo leads (data already enriched)");
-    withPhones.push(...enriched.map((l) => ({ ...l, phone: l.phone || null, phone_confidence: l.phone ? "medium" : "none" })));
-  } else {
-    log("Searching for phone numbers...");
-    for (const lead of enriched) {
-      try {
-        const result = await findPhone(lead);
-        withPhones.push(result);
-      } catch (err) {
-        console.error(`[Pipeline] Phone search failed for ${lead.name}:`, err.message);
-        withPhones.push({ ...lead, phone: null, phone_confidence: "none" });
-      }
-      await new Promise((r) => setTimeout(r, 2500));
-    }
-    log("Phone enrichment complete");
-  }
+  // Step 6: Phone enrichment — use Apollo-provided phones, skip scraping
+  const withPhones = enriched.map((l) => ({
+    ...l,
+    phone: l.phone || null,
+    phone_confidence: l.phone ? "medium" : "none",
+  }));
+  log("Phone data from Apollo applied");
 
   // Step 7: Save to database
   log("Saving leads to database...");
