@@ -16,7 +16,7 @@ fastify.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB m
 fastify.register(fastifyStatic, {
   root: path.join(__dirname, "..", "frontend", "dist"),
   prefix: "/",
-  wildcard: false,
+  wildcard: true,
 });
 
 // ── API Routes (registered under /api prefix for production) ─────
@@ -177,15 +177,8 @@ app.get("/health", async () => {
 
 // Register API routes under /api prefix (used by production frontend)
 fastify.register(apiRoutes, { prefix: "/api" });
-// Also register at root (for backwards compat / direct access)
-fastify.register(apiRoutes);
 
-// Explicit root route — serve index.html
-fastify.get("/", async (request, reply) => {
-  return reply.sendFile("index.html");
-});
-
-// SPA catch-all — serve index.html for any unmatched route
+// SPA catch-all — serve index.html for any unmatched non-API route
 fastify.setNotFoundHandler((request, reply) => {
   if (request.url.startsWith("/api")) {
     return reply.status(404).send({ error: "API route not found" });
