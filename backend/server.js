@@ -173,6 +173,20 @@ app.get("/health", async () => {
   return { status: "ok", timestamp: new Date().toISOString() };
 });
 
+/**
+ * GET /debug — check Apollo config (temporary)
+ */
+app.get("/debug", async () => {
+  const apollo = require("./modules/apolloClient");
+  return {
+    apolloConfigured: apollo.isConfigured(),
+    emailSet: !!process.env.APOLLO_EMAIL,
+    passwordSet: !!process.env.APOLLO_PASSWORD,
+    passwordLength: process.env.APOLLO_PASSWORD?.length || 0,
+    cookieSet: !!process.env.APOLLO_COOKIE,
+  };
+});
+
 } // end apiRoutes
 
 // Register API routes under /api prefix (used by production frontend)
