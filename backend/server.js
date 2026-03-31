@@ -174,17 +174,23 @@ app.get("/health", async () => {
 });
 
 /**
- * GET /debug — check Apollo config (temporary)
+ * GET /debug — test Apollo login (temporary)
  */
 app.get("/debug", async () => {
   const apollo = require("./modules/apolloClient");
-  return {
-    apolloConfigured: apollo.isConfigured(),
-    emailSet: !!process.env.APOLLO_EMAIL,
-    passwordSet: !!process.env.APOLLO_PASSWORD,
-    passwordLength: process.env.APOLLO_PASSWORD?.length || 0,
-    cookieSet: !!process.env.APOLLO_COOKIE,
-  };
+  try {
+    const results = await apollo.searchPeople("Razorpay", ["CEO"], 1, 3);
+    return {
+      apolloConfigured: apollo.isConfigured(),
+      emailSet: !!process.env.APOLLO_EMAIL,
+      passwordLength: process.env.APOLLO_PASSWORD?.length || 0,
+      testSearch: results.length > 0 ? "SUCCESS" : "NO_RESULTS",
+      resultCount: results.length,
+      sample: results[0] ? { name: results[0].name, title: results[0].title } : null,
+    };
+  } catch (err) {
+    return { error: err.message };
+  }
 });
 
 } // end apiRoutes
