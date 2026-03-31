@@ -177,16 +177,30 @@ app.get("/health", async () => {
  * GET /debug — test Apollo login (temporary)
  */
 app.get("/debug", async () => {
-  const apollo = require("./modules/apolloClient");
+  const axios = require("axios");
   try {
-    const results = await apollo.searchPeople("Razorpay", ["CEO"], 1, 3);
+    const loginRes = await axios.post(
+      "https://app.apollo.io/api/v1/auth/login",
+      { email: process.env.APOLLO_EMAIL, password: process.env.APOLLO_PASSWORD },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Origin": "https://app.apollo.io",
+          "Referer": "https://app.apollo.io/",
+        },
+        validateStatus: () => true,
+        maxRedirects: 0,
+      }
+    );
+    const cookies = loginRes.headers["set-cookie"] || [];
     return {
-      apolloConfigured: apollo.isConfigured(),
-      emailSet: !!process.env.APOLLO_EMAIL,
-      passwordLength: process.env.APOLLO_PASSWORD?.length || 0,
-      testSearch: results.length > 0 ? "SUCCESS" : "NO_RESULTS",
-      resultCount: results.length,
-      sample: results[0] ? { name: results[0].name, title: results[0].title } : null,
+      loginStatus: loginRes.status,
+      isLoggedIn: loginRes.data?.is_logged_in || false,
+      error: loginRes.data?.error || null,
+      cookieCount: cookies.length,
+      hasCsrf: cookies.some(c => c.includes("X-CSRF-TOKEN")),
+      passwordUsed: process.env.APOLLO_PASSWORD?.substring(0, 3) + "***" + process.env.APOLLO_PASSWORD?.substring(process.env.APOLLO_PASSWORD.length - 3),
     };
   } catch (err) {
     return { error: err.message };
