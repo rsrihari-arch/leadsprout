@@ -180,6 +180,11 @@ fastify.register(apiRoutes, { prefix: "/api" });
 // Also register at root (for backwards compat / direct access)
 fastify.register(apiRoutes);
 
+// Explicit root route — serve index.html
+fastify.get("/", async (request, reply) => {
+  return reply.sendFile("index.html");
+});
+
 // SPA catch-all — serve index.html for any unmatched route
 fastify.setNotFoundHandler((request, reply) => {
   if (request.url.startsWith("/api")) {
