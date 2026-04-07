@@ -360,18 +360,19 @@ export default function App() {
     if (pollRef.current) clearInterval(pollRef.current);
   };
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const handleSearch = async (overrideQuery) => {
+    const searchQuery = (overrideQuery || query).trim();
+    if (!searchQuery) return;
     resetState();
     setLoading(true);
-    setSearchedCompany(query.trim());
+    setSearchedCompany(searchQuery);
 
     try {
       const roleList = roles.split(",").map((r) => r.trim()).filter(Boolean);
       const res = await fetch(`${API}/search-leads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query.trim(), roles: roleList }),
+        body: JSON.stringify({ query: searchQuery, roles: roleList }),
       });
       if (!res.ok) throw new Error("Failed to start search");
       const data = await res.json();
@@ -448,8 +449,12 @@ export default function App() {
                   query={query}
                   setQuery={setQuery}
                   onSelect={(company) => {
-                    if (company) setSelectedCompany(company);
-                    handleSearch();
+                    if (company) {
+                      setSelectedCompany(company);
+                      handleSearch(company.name);
+                    } else {
+                      handleSearch();
+                    }
                   }}
                 />
                 <button
