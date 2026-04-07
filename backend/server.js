@@ -174,33 +174,28 @@ app.get("/health", async () => {
 });
 
 /**
- * GET /debug — test Apollo login (temporary)
+ * POST /refresh-session — push fresh Apollo cookies from local machine
+ */
+app.post("/refresh-session", async (request) => {
+  const { cookie, csrf } = request.body || {};
+  if (!cookie) return { error: "cookie is required" };
+  const apollo = require("./modules/apolloClient");
+  apollo.setSession(cookie, csrf || "");
+  return { success: true, cookieLength: cookie.length };
+});
+
+/**
+ * GET /debug — test Apollo search
  */
 app.get("/debug", async () => {
-  const axios = require("axios");
+  const apollo = require("./modules/apolloClient");
   try {
-    const loginRes = await axios.post(
-      "https://app.apollo.io/api/v1/auth/login",
-      { email: process.env.APOLLO_EMAIL, password: process.env.APOLLO_PASSWORD },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Origin": "https://app.apollo.io",
-          "Referer": "https://app.apollo.io/",
-        },
-        validateStatus: () => true,
-        maxRedirects: 0,
-      }
-    );
-    const cookies = loginRes.headers["set-cookie"] || [];
+    const results = await apollo.searchPeople("Razorpay", ["CEO", "CFO"], 1, 3);
     return {
-      loginStatus: loginRes.status,
-      isLoggedIn: loginRes.data?.is_logged_in || false,
-      error: loginRes.data?.error || null,
-      cookieCount: cookies.length,
-      hasCsrf: cookies.some(c => c.includes("X-CSRF-TOKEN")),
-      passwordUsed: process.env.APOLLO_PASSWORD?.substring(0, 3) + "***" + process.env.APOLLO_PASSWORD?.substring(process.env.APOLLO_PASSWORD.length - 3),
+      apolloConfigured: apollo.isConfigured(),
+      hasSession: apollo.hasSession(),
+      resultCount: results.length,
+      sample: results[0] ? { name: results[0].name, title: results[0].title } : null,
     };
   } catch (err) {
     return { error: err.message };

@@ -8,10 +8,11 @@ const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 const APOLLO_EMAIL = process.env.APOLLO_EMAIL;
 const APOLLO_PASSWORD = process.env.APOLLO_PASSWORD;
 const APOLLO_COOKIE = process.env.APOLLO_COOKIE || "";
-console.log(`[Apollo] Configured: email=${!!APOLLO_EMAIL}, cookie=${APOLLO_COOKIE.length > 0 ? "yes" : "no"}`);
+const APOLLO_CSRF = process.env.APOLLO_CSRF || "";
+console.log(`[Apollo] Configured: email=${!!APOLLO_EMAIL}, cookie=${APOLLO_COOKIE.length > 0 ? "yes" : "no"}, csrf=${APOLLO_CSRF.length > 0 ? "yes" : "no"}`);
 
 let sessionCookie = APOLLO_COOKIE;
-let csrfToken = "";
+let csrfToken = APOLLO_CSRF;
 
 /**
  * Login to Apollo via HTTP (no browser needed) and get session cookies.
@@ -59,7 +60,7 @@ async function loginViaHttp() {
         // Extract CSRF token
         const csrfCookie = cookies.find((c) => c.includes("X-CSRF-TOKEN"));
         if (csrfCookie) {
-          csrfToken = decodeURIComponent(csrfCookie.split("=")[1].split(";")[0]);
+          csrfToken = decodeURIComponent(csrfCookie.split("X-CSRF-TOKEN=")[1].split(";")[0]);
         }
         console.log(`[Apollo] HTTP login successful — got ${cookies.length} cookies`);
         return true;
@@ -160,8 +161,18 @@ function isConfigured() {
   return !!(APOLLO_EMAIL || sessionCookie);
 }
 
+function hasSession() {
+  return sessionCookie.length > 0;
+}
+
+function setSession(cookie, csrf) {
+  sessionCookie = cookie;
+  csrfToken = csrf || "";
+  console.log(`[Apollo] Session updated — cookie: ${cookie.length} chars, csrf: ${csrf?.length || 0} chars`);
+}
+
 async function closeBrowser() {
   // No browser to close — using HTTP API
 }
 
-module.exports = { searchPeople, isConfigured, closeBrowser };
+module.exports = { searchPeople, isConfigured, hasSession, setSession, closeBrowser };
