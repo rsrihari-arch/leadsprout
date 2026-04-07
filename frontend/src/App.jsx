@@ -453,7 +453,7 @@ export default function App() {
                   }}
                 />
                 <button
-                  onClick={handleSearch}
+                  onMouseDown={(e) => { e.preventDefault(); handleSearch(); }}
                   disabled={loading || !query.trim()}
                   className="px-6 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition whitespace-nowrap"
                 >
