@@ -189,13 +189,28 @@ app.post("/refresh-session", async (request) => {
  */
 app.get("/debug", async () => {
   const apollo = require("./modules/apolloClient");
+  const ax = require("axios");
   try {
-    const results = await apollo.searchPeople("Razorpay", ["CEO", "CFO"], 1, 3);
+    // Direct raw test
+    const cookie = apollo.getSession().cookie;
+    const csrf = apollo.getSession().csrf;
+    const res = await ax.post("https://app.apollo.io/api/v1/mixed_people/search", {
+      q_organization_name: "Razorpay", person_titles: ["ceo", "cfo"], page: 1, per_page: 3,
+    }, {
+      headers: { "Content-Type": "application/json", "Cookie": cookie, "X-CSRF-TOKEN": csrf, "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
+      validateStatus: () => true, timeout: 15000,
+    });
+    const isHtml = typeof res.data === "string";
     return {
-      apolloConfigured: apollo.isConfigured(),
       hasSession: apollo.hasSession(),
-      resultCount: results.length,
-      sample: results[0] ? { name: results[0].name, title: results[0].title } : null,
+      cookieLen: cookie?.length || 0,
+      csrfLen: csrf?.length || 0,
+      searchStatus: res.status,
+      isHtml,
+      preview: isHtml ? res.data.substring(0, 200) : undefined,
+      peopleCount: res.data?.people?.length,
+      total: res.data?.pagination?.total_entries,
+      sample: res.data?.people?.[0] ? { name: (res.data.people[0].first_name + " " + res.data.people[0].last_name).trim(), title: res.data.people[0].title } : null,
     };
   } catch (err) {
     return { error: err.message };

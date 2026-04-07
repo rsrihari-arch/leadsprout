@@ -133,6 +133,13 @@ async function searchPeople(company, roles, pageNum = 1, perPage = 10) {
     }
 
     const data = res.data;
+
+    // Check for Cloudflare challenge
+    if (typeof data === "string" && data.includes("turnstile")) {
+      console.error("[Apollo] Cloudflare challenge detected — cookies may be IP-bound");
+      return [];
+    }
+
     const people = (data.people || []).map((p) => ({
       name: [(p.first_name || ""), (p.last_name || "")].filter(Boolean).join(" "),
       title: p.title || p.headline || "Unknown",
@@ -175,4 +182,8 @@ async function closeBrowser() {
   // No browser to close — using HTTP API
 }
 
-module.exports = { searchPeople, isConfigured, hasSession, setSession, closeBrowser };
+function getSession() {
+  return { cookie: sessionCookie, csrf: csrfToken };
+}
+
+module.exports = { searchPeople, isConfigured, hasSession, setSession, getSession, closeBrowser };
