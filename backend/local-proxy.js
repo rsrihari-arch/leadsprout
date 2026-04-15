@@ -87,21 +87,30 @@ fastify.post("/apollo-search", async (request, reply) => {
       }
     );
 
+    // Log response details for debugging
+    if (typeof res.data === "string") {
+      console.log(`[Proxy] Got HTML response (${res.data.length} chars): ${res.data.substring(0, 200)}`);
+    } else {
+      console.log(`[Proxy] Search response: status=${res.status}, people=${res.data?.people?.length || 0}`);
+    }
+
     // Cloudflare challenge or session expired — re-login and retry once
     if (typeof res.data === "string" && res.data.includes("turnstile")) {
-      console.log("[Proxy] Cloudflare challenge — re-logging in...");
+      console.log("[Proxy] Cloudflare challenge detected — waiting 5s then re-logging in...");
+      await new Promise((r) => setTimeout(r, 5000));
       const ok = await login();
-      if (!ok) return reply.status(500).send({ error: "Re-login failed" });
+      if (!ok) return reply.status(500).send({ error: "Re-login failed after Cloudflare challenge" });
       return fastify.inject({ method: "POST", url: "/apollo-search", payload: request.body }).then((r) => {
         reply.status(r.statusCode).send(JSON.parse(r.payload));
       });
     }
 
     if (res.status === 401 || res.status === 403) {
-      console.log("[Proxy] Session expired — re-logging in...");
+      console.log(`[Proxy] Session expired (HTTP ${res.status}) — waiting 3s then re-logging in...`);
       sessionCookie = "";
+      await new Promise((r) => setTimeout(r, 3000));
       const ok = await login();
-      if (!ok) return reply.status(500).send({ error: "Re-login failed" });
+      if (!ok) return reply.status(500).send({ error: "Re-login failed after session expiry" });
       return fastify.inject({ method: "POST", url: "/apollo-search", payload: request.body }).then((r) => {
         reply.status(r.statusCode).send(JSON.parse(r.payload));
       });
