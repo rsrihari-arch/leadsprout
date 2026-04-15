@@ -185,6 +185,34 @@ app.post("/refresh-session", async (request) => {
 });
 
 /**
+ * POST /set-proxy — set the Apollo proxy URL (from local machine tunnel)
+ */
+app.post("/set-proxy", async (request) => {
+  const { url } = request.body || {};
+  if (!url) return { error: "url is required" };
+  const apollo = require("./modules/apolloClient");
+  apollo.setProxyUrl(url.replace(/\/+$/, "")); // strip trailing slash
+  return { success: true, proxyUrl: url };
+});
+
+/**
+ * GET /proxy-status — check if the Apollo proxy is reachable
+ */
+app.get("/proxy-status", async () => {
+  const apollo = require("./modules/apolloClient");
+  const proxyUrl = apollo.getProxyUrl();
+  if (!proxyUrl) return { configured: false };
+
+  try {
+    const ax = require("axios");
+    const res = await ax.get(`${proxyUrl}/health`, { timeout: 5000 });
+    return { configured: true, proxyUrl, reachable: true, proxyHealth: res.data };
+  } catch (err) {
+    return { configured: true, proxyUrl, reachable: false, error: err.message };
+  }
+});
+
+/**
  * GET /debug — test Apollo search
  */
 app.get("/debug", async () => {

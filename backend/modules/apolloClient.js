@@ -13,6 +13,7 @@ console.log(`[Apollo] Configured: email=${!!APOLLO_EMAIL}, cookie=${APOLLO_COOKI
 
 let sessionCookie = APOLLO_COOKIE;
 let csrfToken = APOLLO_CSRF;
+let proxyUrl = process.env.APOLLO_PROXY_URL || "";
 
 /**
  * Login to Apollo via HTTP (no browser needed) and get session cookies.
@@ -76,9 +77,38 @@ async function loginViaHttp() {
 }
 
 /**
+ * Search via the local Apollo proxy (bypasses Cloudflare).
+ */
+async function searchViaProxy(company, roles, pageNum = 1, perPage = 10) {
+  console.log(`[Apollo] Searching via proxy: ${proxyUrl}`);
+  try {
+    const res = await axios.post(
+      `${proxyUrl}/apollo-search`,
+      { company, roles, page: pageNum, perPage },
+      { timeout: 20000, validateStatus: () => true }
+    );
+    if (res.status !== 200) {
+      console.error(`[Apollo] Proxy returned ${res.status}: ${JSON.stringify(res.data)}`);
+      return [];
+    }
+    const people = res.data.people || [];
+    console.log(`[Apollo] Proxy returned ${people.length} people for "${company}"`);
+    return people;
+  } catch (err) {
+    console.error(`[Apollo] Proxy error: ${err.message}`);
+    return [];
+  }
+}
+
+/**
  * Search for people at a company using Apollo's API with session cookies.
  */
 async function searchPeople(company, roles, pageNum = 1, perPage = 10) {
+  // Use proxy if configured (bypasses Cloudflare on cloud servers)
+  if (proxyUrl) {
+    return searchViaProxy(company, roles, pageNum, perPage);
+  }
+
   if (!APOLLO_EMAIL && !sessionCookie) {
     console.log("[Apollo] No credentials or cookie configured — skipping");
     return [];
@@ -186,4 +216,13 @@ function getSession() {
   return { cookie: sessionCookie, csrf: csrfToken };
 }
 
-module.exports = { searchPeople, isConfigured, hasSession, setSession, getSession, closeBrowser };
+function setProxyUrl(url) {
+  proxyUrl = url || "";
+  console.log(`[Apollo] Proxy URL set to: ${proxyUrl || "(none)"}`);
+}
+
+function getProxyUrl() {
+  return proxyUrl;
+}
+
+module.exports = { searchPeople, isConfigured, hasSession, setSession, getSession, closeBrowser, setProxyUrl, getProxyUrl };
